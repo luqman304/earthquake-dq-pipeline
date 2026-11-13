@@ -313,11 +313,14 @@ Full tables: [`docs/results/analytics_snapshot.md`](docs/results/analytics_snaps
 ### Model page with enforced contract and column tests
 ![fct_earthquakes in dbt docs](docs/images/docs_model_fct.png)
 
-### Quality report in the GitHub Actions job summary
-![Actions job summary](docs/images/actions_summary.png)
+### The published docs site ([live](https://luqman304.github.io/earthquake-dq-pipeline/))
+![dbt docs site on GitHub Pages](docs/images/pages_site.png)
 
 ### Fault-injection gate in CI
-![Fault-injection job](docs/images/actions_fault_gate.png)
+The job ingests corrupted rows, requires `dbt build` to fail, and then checks that each fault
+was caught by the right test at the right severity.
+
+![Fault-injection job in GitHub Actions](docs/images/actions_fault_gate.png)
 
 ## Running it locally
 
