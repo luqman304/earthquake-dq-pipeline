@@ -1,0 +1,35 @@
+flowchart LR
+    api(["USGS FDSN Event API"]) -->|"pipeline/ingest.py"| source_quake_quality_usgs_earthquakes
+    source_quake_quality_usgs_earthquakes[("raw.usgs_earthquakes<br/>11 tests + freshness")]
+    seed_quake_quality_region_aliases[/"region_aliases"/]
+    seed_quake_quality_seismic_networks[/"seismic_networks"/]
+    seed_quake_quality_magnitude_classes[/"magnitude_classes"/]
+    model_quake_quality_dim_regions["dim_regions<br/>2 tests"]
+    model_quake_quality_mart_daily_seismicity["mart_daily_seismicity<br/>3 tests"]
+    model_quake_quality_mart_network_operations["mart_network_operations<br/>2 tests"]
+    model_quake_quality_mart_significant_events["mart_significant_events<br/>2 tests"]
+    model_quake_quality_fct_earthquakes["fct_earthquakes<br/>6 tests"]
+    model_quake_quality_int_earthquakes__enriched["int_earthquakes__enriched<br/>6 tests"]
+    model_quake_quality_stg_usgs__earthquakes["stg_usgs__earthquakes<br/>7 tests"]
+    model_quake_quality_fct_earthquakes --> model_quake_quality_mart_daily_seismicity
+    model_quake_quality_fct_earthquakes --> model_quake_quality_mart_network_operations
+    model_quake_quality_fct_earthquakes --> model_quake_quality_mart_significant_events
+    model_quake_quality_int_earthquakes__enriched --> model_quake_quality_dim_regions
+    model_quake_quality_int_earthquakes__enriched --> model_quake_quality_fct_earthquakes
+    model_quake_quality_stg_usgs__earthquakes --> model_quake_quality_int_earthquakes__enriched
+    seed_quake_quality_magnitude_classes --> model_quake_quality_int_earthquakes__enriched
+    seed_quake_quality_region_aliases --> model_quake_quality_int_earthquakes__enriched
+    seed_quake_quality_seismic_networks --> model_quake_quality_int_earthquakes__enriched
+    source_quake_quality_usgs_earthquakes --> model_quake_quality_stg_usgs__earthquakes
+    classDef api fill:#fff,stroke:#b45309,stroke-dasharray:4,color:#111
+    class api api
+    classDef source fill:#fde68a,stroke:#b45309,color:#111
+    class source_quake_quality_usgs_earthquakes source
+    classDef seed fill:#e5e7eb,stroke:#4b5563,color:#111
+    class seed_quake_quality_region_aliases,seed_quake_quality_seismic_networks,seed_quake_quality_magnitude_classes seed
+    classDef staging fill:#bfdbfe,stroke:#1d4ed8,color:#111
+    class model_quake_quality_stg_usgs__earthquakes staging
+    classDef intermediate fill:#c7d2fe,stroke:#4338ca,color:#111
+    class model_quake_quality_int_earthquakes__enriched intermediate
+    classDef marts fill:#bbf7d0,stroke:#15803d,color:#111
+    class model_quake_quality_dim_regions,model_quake_quality_mart_daily_seismicity,model_quake_quality_mart_network_operations,model_quake_quality_mart_significant_events,model_quake_quality_fct_earthquakes marts

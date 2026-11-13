@@ -1,0 +1,35 @@
+name: quake_quality
+version: "1.0.0"
+config-version: 2
+profile: quake_quality
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+flags:
+  send_anonymous_usage_stats: false
+
+models:
+  quake_quality:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table
+
+seeds:
+  quake_quality:
+    +schema: reference
+
+data_tests:
+  quake_quality:
+    +store_failures: true
+    +schema: dq_failures

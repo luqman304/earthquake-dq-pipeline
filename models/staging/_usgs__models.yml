@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: stg_usgs__earthquakes
+    description: Typed and de-duplicated USGS events (latest version of each event id).
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "updated_at_utc >= event_at_utc"
+          config: {severity: error}
+    columns:
+      - name: event_id
+        description: Primary key.
+        data_tests:
+          - unique: {config: {severity: error}}
+          - not_null: {config: {severity: error}}
+      - name: event_at_utc
+        description: Origin time (UTC).
+        data_tests:
+          - not_null: {config: {severity: error}}
+      - name: depth_km
+        description: Hypocentre depth in km. Negative means above the reference sea level (e.g. in mountains).
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: -10, max_value: 800}
+              config: {severity: error}
+      - name: magnitude
+        data_tests:
+          - not_null: {config: {severity: warn}}
+      - name: magnitude_type
+        description: Magnitude scale (ml, md, mb, mww, ...). Values on different scales are not strictly comparable.
+      - name: network_code
+        description: Contributing ANSS / international network.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('seismic_networks'), field: network_code}
+              # A new contributing network is worth knowing about but should not break the build.
+              config: {severity: warn}
+      - name: review_status
+        description: "'automatic' (machine solution) or 'reviewed' (checked by a seismologist)."
+      - name: region_raw
+        description: Region text parsed from `place`, before normalisation.

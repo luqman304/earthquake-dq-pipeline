@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: int_earthquakes__enriched
+    description: >
+      Events joined to reference seeds (region aliases, networks, magnitude classes)
+      with derived depth class, radiated energy and review latency.
+    columns:
+      - name: event_id
+        data_tests:
+          - unique: {config: {severity: error}}
+          - not_null: {config: {severity: error}}
+      - name: region
+        description: Canonical region name ("CA" -> "California", "Japan region" -> "Japan").
+        data_tests:
+          - not_null: {config: {severity: error}}
+      - name: magnitude_class
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["micro", "minor", "light", "moderate", "strong", "major", "great", "unknown"]
+              config: {severity: error}
+      - name: depth_class
+        data_tests:
+          - accepted_values:
+              arguments: {values: ["shallow", "intermediate", "deep"]}
+              config: {severity: error}
+      - name: minutes_to_last_update
+        description: Minutes between origin time and the latest revision of the event.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0}
+              config: {severity: error}

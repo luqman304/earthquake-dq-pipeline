@@ -1,0 +1,73 @@
+name: Scheduled pipeline + docs
+
+# Full refresh of the 30-day rolling window every day, then publish the dbt docs
+# (models, tests, lineage graph) and the data-quality report to GitHub Pages.
+on:
+  schedule:
+    - cron: "17 6 * * *"   # daily at 06:17 UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["models/**", "seeds/**", "tests/**", "macros/**", "pipeline/**", "scripts/**",
+            "dbt_project.yml", "packages.yml", "requirements.txt", ".github/workflows/pipeline.yml"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  DBT_PROFILES_DIR: ${{ github.workspace }}
+  INGEST_DAYS: "30"
+
+jobs:
+  run:
+    name: ingest -> freshness -> build -> docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          dbt deps
+      - name: Ingest (USGS API -> raw)
+        run: python pipeline/ingest.py
+      - name: Source freshness
+        run: dbt source freshness
+      - name: dbt build
+        run: dbt build
+      - name: Reports
+        if: always()
+        run: |
+          mkdir -p site
+          python scripts/summarize_results.py --title "Scheduled run data-quality report" --out site/quality_report.md
+          cat site/quality_report.md >> "$GITHUB_STEP_SUMMARY"
+          python scripts/analytics_snapshot.py site/analytics_snapshot.md >> "$GITHUB_STEP_SUMMARY" || true
+          cp target/run_results.json site/run_results.json
+      - name: Generate docs site
+        run: |
+          dbt docs generate --static
+          cp target/static_index.html site/index.html
+          cp target/manifest.json target/catalog.json target/sources.json site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: run
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

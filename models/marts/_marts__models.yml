@@ -1,0 +1,94 @@
+version: 2
+
+models:
+  - name: fct_earthquakes
+    description: One row per seismic event in the rolling window, ready for analysis.
+    config:
+      contract: {enforced: true}
+    data_tests:
+      # The scheduled run should always see events from the last day.
+      - dbt_utils.recency:
+          arguments: {datepart: hour, field: event_at_utc, interval: 24}
+          config: {severity: warn}
+    columns:
+      - name: event_id
+        data_type: varchar
+        constraints: [{type: not_null}, {type: primary_key}]
+        data_tests:
+          - unique: {config: {severity: error}}
+      - {name: event_at_utc, data_type: timestamp, constraints: [{type: not_null}]}
+      - {name: event_date, data_type: date}
+      - {name: latitude, data_type: double}
+      - {name: longitude, data_type: double}
+      - {name: depth_km, data_type: double}
+      - {name: depth_class, data_type: varchar}
+      - {name: magnitude, data_type: double}
+      - {name: magnitude_type, data_type: varchar}
+      - {name: magnitude_class, data_type: varchar}
+      - name: energy_joules
+        data_type: double
+        description: Radiated seismic energy from the Gutenberg-Richter relation.
+      - {name: event_type, data_type: varchar}
+      - {name: is_tectonic, data_type: boolean}
+      - {name: place, data_type: varchar}
+      - name: region
+        data_type: varchar
+        data_tests:
+          - not_null: {config: {severity: error}}
+      - {name: country_or_area, data_type: varchar}
+      - {name: network_code, data_type: varchar}
+      - {name: network_name, data_type: varchar}
+      - {name: review_status, data_type: varchar}
+      - {name: is_reviewed, data_type: boolean}
+      - {name: minutes_to_last_update, data_type: bigint}
+      - {name: station_count, data_type: integer}
+      - {name: azimuthal_gap_deg, data_type: double}
+      - {name: horizontal_error_km, data_type: double}
+      - {name: depth_error_km, data_type: double}
+      - {name: magnitude_error, data_type: double}
+      - {name: _loaded_at, data_type: "timestamp with time zone"}
+
+  - name: dim_regions
+    description: One row per canonical region with activity totals.
+    columns:
+      - name: region
+        data_tests:
+          - unique: {config: {severity: error}}
+          - not_null: {config: {severity: error}}
+
+  - name: mart_daily_seismicity
+    description: Daily event counts, maximum magnitude and radiated energy per region.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments: {combination_of_columns: [event_date, region]}
+          config: {severity: error}
+    columns:
+      - name: event_count
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 1}
+              config: {severity: error}
+
+  - name: mart_network_operations
+    description: Review coverage and revision latency (origin time to latest update) for each contributing seismic network.
+    columns:
+      - name: network_code
+        data_tests:
+          - unique: {config: {severity: error}}
+      - name: pct_reviewed
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 0, max_value: 100}
+              config: {severity: error}
+
+  - name: mart_significant_events
+    description: Events of magnitude 4.5+, largest first.
+    columns:
+      - name: event_id
+        data_tests:
+          - unique: {config: {severity: error}}
+      - name: magnitude
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments: {min_value: 4.5}
+              config: {severity: error}

@@ -1,0 +1,20 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Data (downloaded by pipeline/ingest.py, never committed)
+data/
+*.duckdb
+*.duckdb.wal
+
+# dbt
+target/
+dbt_packages/
+logs/
+.user.yml
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

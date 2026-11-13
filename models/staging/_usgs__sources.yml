@@ -1,0 +1,74 @@
+version: 2
+
+sources:
+  - name: usgs
+    description: >
+      Earthquake events from the USGS FDSN Event Web Service
+      (https://earthquake.usgs.gov/fdsnws/event/1/), loaded by `pipeline/ingest.py`.
+      Every column is landed as VARCHAR, exactly as the API returned it.
+    schema: raw
+    config:
+      freshness:
+        warn_after: {count: 6, period: hour}
+        error_after: {count: 24, period: hour}
+      loaded_at_field: "try_cast(\"time\" as timestamp)"
+    tables:
+      - name: earthquakes
+        identifier: usgs_earthquakes
+        description: One row per event per download chunk (duplicates possible at chunk boundaries).
+        data_tests:
+          # Volume anomaly: a 30-day global window normally holds ~10k events.
+          - dbt_expectations.expect_table_row_count_to_be_between:
+              arguments: {min_value: 1000}
+              config: {severity: error}
+        columns:
+          - name: id
+            description: USGS event id (network code + network-local id).
+            data_tests:
+              - not_null:
+                  config: {severity: error}
+              - unique:
+                  # Same event can land in two adjacent download windows; staging de-duplicates.
+                  config: {severity: warn}
+          - name: time
+            description: Origin time, ISO-8601 UTC string.
+            data_tests:
+              - not_null:
+                  config: {severity: error}
+          - name: latitude
+            data_tests:
+              - text_numeric_in_range:
+                  arguments: {min_value: -90, max_value: 90}
+                  config: {severity: error}
+          - name: longitude
+            data_tests:
+              - text_numeric_in_range:
+                  arguments: {min_value: -180, max_value: 180}
+                  config: {severity: error}
+          - name: mag
+            description: Magnitude. Small negative values are legitimate for micro-events.
+            data_tests:
+              - text_numeric_in_range:
+                  arguments: {min_value: -2, max_value: 10}
+                  config: {severity: error}
+          - name: type
+            description: Event type. New types appear occasionally, so an unknown value warns instead of failing.
+            data_tests:
+              - accepted_values:
+                  arguments:
+                    values: ["earthquake", "quarry blast", "explosion", "ice quake", "other event",
+                             "landslide", "mining explosion", "chemical explosion", "rock burst",
+                             "sonic boom", "volcanic eruption", "acoustic noise", "not reported",
+                             "induced or triggered event", "collapse", "experimental explosion",
+                             "snow avalanche", "nuclear explosion", "volcanic explosion"]
+                  config: {severity: warn}
+          - name: net
+            data_tests:
+              - dbt_expectations.expect_column_values_to_match_regex:
+                  arguments: {regex: "^[a-z]{2}$"}
+                  config: {severity: error}
+          - name: status
+            data_tests:
+              - accepted_values:
+                  arguments: {values: ["automatic", "reviewed", "deleted"]}
+                  config: {severity: error}
